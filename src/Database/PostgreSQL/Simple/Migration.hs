@@ -58,15 +58,15 @@ import           Data.Traversable                   (Traversable)
 import           Data.Monoid                        (Monoid (..))
 #endif
 import           Data.Time                          (LocalTime)
-import           Database.PostgreSQL.Simple         (Connection, Only (..),
-                                                     execute, execute_, query,
-                                                     query_)
+import           Database.PostgreSQL.Simple         (Connection, Only (..)) -- , execute, execute_, query, query_)
+import qualified Database.PostgreSQL.Simple         as PG
 import           Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
 import           Database.PostgreSQL.Simple.ToField (ToField (..))
 import           Database.PostgreSQL.Simple.ToRow   (ToRow (..))
 import           Database.PostgreSQL.Simple.Types   (Query (..))
 import           Database.PostgreSQL.Simple.Util    (existsTable)
 import           System.Directory                   (getDirectoryContents)
+import           Debug.Trace
 
 -- | Executes migrations inside the provided 'MigrationContext'.
 --
@@ -76,7 +76,7 @@ import           System.Directory                   (getDirectoryContents)
 --
 -- It is recommended to wrap 'runMigration' inside a database transaction.
 runMigration :: MigrationContext -> IO (MigrationResult String)
-runMigration (MigrationContext cmd verbose con) = 
+runMigration (MigrationContext cmd verbose con) =
   runMigration' (MigrationContext' cmd verbose con "schema_migrations")
 
 runMigration' :: MigrationContext' -> IO (MigrationResult String)
@@ -201,7 +201,7 @@ initializeSchema con tableName verbose = do
 -- * 'MigrationValidation': always succeeds.
 -- * 'MigrationCommands': validates all the sub-commands stopping at the first failure.
 executeValidation :: Connection -> BS.ByteString -> Bool -> MigrationCommand -> IO (MigrationResult String)
-executeValidation con tableName' verbose cmd = 
+executeValidation con tableName' verbose cmd =
   let tableName = BS8.unpack tableName' in
   case cmd of
     MigrationInitialization ->
@@ -372,3 +372,13 @@ instance FromRow SchemaMigration where
 instance ToRow SchemaMigration where
     toRow (SchemaMigration name checksum executedAt) =
        [toField name, toField checksum, toField executedAt]
+
+
+execute con q vs =
+  PG.execute con (traceShowId q) vs
+execute_ con q =
+  PG.execute_ con (traceShowId q)
+query con q vs =
+  PG.query con (traceShowId q) vs
+query_ con q =
+  PG.query_ con (traceShowId q)
